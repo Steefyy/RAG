@@ -7,7 +7,5 @@ __pycache__/
 .coverage
 .pytest_cache/
 htmlcov/
-reranker-service/
-embedder_service/
 .vscode/
 .venv/
