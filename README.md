@@ -1,32 +1,39 @@
-# LLM Response Service — RAG & Chat Orchestrator (Persoana A)
+# Academic RAG System
 
-Acest proiect reprezintă microserviciul central de **Chat & RAG Orchestrator** dezvoltat în FastAPI pentru o platformă universitara
+Sistem integrat de **Asistent Academic Inteligent (RAG)** dezvoltat în FastAPI și bazat pe microservicii pentru o platformă universitară.
 
-## 🎓 Ce face acest proiect?
-Sistemul funcționează ca un **Asistent Academic Inteligent**:
-1. **Prelucrează întrebările studenților** și oferă răspunsuri structurate în limba română.
-2. **Previne Halucinațiile (Strict Grounding)**: Răspunde **doar** pe baza fișierelor de curs încărcate de profesori.
-3. **Izolează Cunoștințele pe Săptămâni**: Un student din Săptămâna 3 **nu primește** informații din Săptămânile 4 sau 5.
-4. **Protejează AI-ul (Prompt Injection Guard)**: Blochează tentativele de manipulare ale prompt-ului (ex: *"ignora regulile..."*).
-5. **Integrează Reranker-ul și Baza de Date Vectorială Qdrant** pentru a furniza cele mai relevante surse.
+## 🎓 Descriere Generală
 
----
-
-> 📘 **Documentația Completă a Proiectului**:  
-> Pentru o explicație detaliată a fiecărei componente, digrame de flux și fișiere, deschide [DOCUMENTATIE_RAG.md](DOCUMENTATIE_RAG.md).
+Sistemul furnizează răspunsuri precise și fundamentate pe suporturile de curs furnizate de profesori:
+1. **Prevenirea halucinațiilor (Strict Grounding)**: Răspunde **exclusiv** pe baza documentelor de curs reale (PDF/Word).
+2. **Izolarea cunoștințelor pe Săptămâni**: Un student din Săptămâna 3 are acces strict la informațiile din Săptămânile 1–3.
+3. **Scut anti-Prompt Injection**: Filtru local offline pentru blocarea tentativelor de manipulare a AI-ului.
+4. **Arhitectură duală RAG**: Vectorizare prin Embedder (`BAAI/bge-m3`), căutare vectorială în Qdrant și reclasificare semantică prin CrossEncoder Reranker (`mmarco-mMiniLMv2`).
+5. **Integrare LLM**: Generare răspunsuri academice structurate în limba română prin modelul Google Gemini.
 
 ---
 
-## 🚀 Rulare Rapidă
+> 📘 **Documentația Detaliată a Arhitecturii**:  
+> Pentru explicații exhaustive ale fiecărui microserviciu, digrame de flux Mermaid și configurări, deschideți [DOCUMENTATIE_RAG.md](DOCUMENTATIE_RAG.md).
 
-### Rulare Locală (Dezvoltare):
+---
+
+## 🚀 Pornire Rapidă (Docker Compose)
+
+Porniți întreaga suită de microservicii (Chat Orchestrator, Embedder Service, Reranker Service și Qdrant Vector DB):
+
 ```powershell
 cd llm-response-service
-.venv\Scripts\python -m uvicorn main:app --reload --port 8000
-```
-Swagger UI: `http://localhost:8000/docs`
 
-### Rulare cu Docker Compose:
-```powershell
+# 1. Configurați cheia API Gemini în .env
+copy .env.example .env
+
+# 2. Lansare containere
 docker compose up --build
 ```
+
+### Dashboard-uri & Interfețe Swagger UI:
+- **Chat Orchestrator API**: `http://localhost:8000/docs`
+- **Embedder Service API**: `http://localhost:8001/docs`
+- **Reranker Service API**: `http://localhost:8002/docs`
+- **Qdrant Vector DB**: `http://localhost:6333/dashboard`

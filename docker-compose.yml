@@ -8,15 +8,15 @@ services:
     env_file:
       - .env
     environment:
-      - QDRANT_HOST=qdrant
+      - RERANKER_URL=http://reranker-service:8002/api/rerank/chunks
+      - EMBEDDER_URL=http://embedder-service:8001/api/query/embed
+      - QDRANT_HOST=qdrant-vector-db
       - QDRANT_PORT=6333
-    depends_on:
-      - qdrant
     networks:
-      - Rag_network
+      - rag_network
     restart: unless-stopped
 
-  # 4. Baza de Date Vectoriala Qdrant (Port 6333)
+  # 2. Baza de Date Vectoriala Qdrant (Port 6333)
   qdrant:
     image: qdrant/qdrant:latest
     container_name: qdrant-vector-db
@@ -26,12 +26,13 @@ services:
     volumes:
       - qdrant_storage:/qdrant/storage
     networks:
-      - app-network
+      - rag_network
     restart: unless-stopped
 
 volumes:
   qdrant_storage:
 
 networks:
-  app-network:
-    driver: bridge
+  rag_network:
+    external: true
+
