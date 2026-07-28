@@ -1,0 +1,15 @@
+[project]
+name = "llm-chat-service"
+version = "0.1.0"
+description = "FastAPI service for LLM orchestrations using Gemini"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi==0.139.2",
+    "uvicorn==0.51.0",
+    "google-genai==2.12.1",
+    "python-dotenv==1.2.2",
+    "pydantic==2.13.4",
+    "httpx==0.28.1",
+    "qdrant-client==1.18.0",
+]
