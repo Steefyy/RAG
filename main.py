@@ -1,10 +1,11 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from models import ChatRequest, ChatResponse
 from llm_service import genereaza_raspuns, verifica_conexiune
 from prompt_builder import construieste_prompt
 from retrieval_service import cauta_context
 from reranker_service import reordoneaza_contexte
 from security_guard import valideaza_intrebare
+from auth import verify_credentials
 
 app = FastAPI(title="RAG Chatbot Service")
 
@@ -18,7 +19,7 @@ def health():
         "llm_connected": connected
     }
 
-@app.post("/chat", response_model=ChatResponse)
+@app.post("/chat", response_model=ChatResponse, dependencies=[Depends(verify_credentials)])
 def chat(request: ChatRequest):
     # 0. Rulam filtrul de securitate local (Prompt Injection Guard) - 100% Gratuit si Offline
     status_securitate = valideaza_intrebare(request.intrebare)
