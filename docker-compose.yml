@@ -34,5 +34,5 @@ volumes:
 
 networks:
   rag_network:
-    external: true
+    driver: bridge
 

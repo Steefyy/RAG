@@ -79,7 +79,7 @@ def test_chat_endpoint_success(mock_gen):
         "cursId": 45,
         "maxSaptamanaParcursa": 5
     }
-    response = client.post("/chat", json=payload)
+    response = client.post("/chat", json=payload, auth=("akadion-spring-backend", "parola_spring_rag"))
     assert response.status_code == 200
     data = response.json()
     assert "raspuns" in data
@@ -125,7 +125,7 @@ def test_chat_endpoint_unsafe():
         "cursId": 45,
         "maxSaptamanaParcursa": 5
     }
-    response = client.post("/chat", json=payload)
+    response = client.post("/chat", json=payload, auth=("akadion-spring-backend", "parola_spring_rag"))
     assert response.status_code == 200
     data = response.json()
     assert "Cerere respinsă" in data["raspuns"]
@@ -139,9 +139,31 @@ def test_chat_endpoint_llm_failure(mock_gen):
         "cursId": 45,
         "maxSaptamanaParcursa": 5
     }
-    response = client.post("/chat", json=payload)
+    response = client.post("/chat", json=payload, auth=("akadion-spring-backend", "parola_spring_rag"))
     assert response.status_code == 503
     assert "Serviciul LLM este momentan" in response.json()["detail"]
+
+def test_chat_endpoint_unauthorized_missing_token():
+    payload = {
+        "intrebare": "Ce este JPA?",
+        "studentId": 101,
+        "cursId": 45,
+        "maxSaptamanaParcursa": 5
+    }
+    response = client.post("/chat", json=payload)
+    assert response.status_code == 401
+    assert "Not authenticated" in response.json()["detail"]
+
+def test_chat_endpoint_unauthorized_wrong_token():
+    payload = {
+        "intrebare": "Ce este JPA?",
+        "studentId": 101,
+        "cursId": 45,
+        "maxSaptamanaParcursa": 5
+    }
+    response = client.post("/chat", json=payload, auth=("gresit", "gresit"))
+    assert response.status_code == 401
+    assert "Credentiale invalide" in response.json()["detail"]
 
 def test_reordoneaza_contexte_empty():
     rezultate = reordoneaza_contexte("Ce este ORM?", [])
@@ -249,5 +271,7 @@ def test_cauta_context_qdrant_query_points(mock_qdrant_class, mock_get_embed):
     res = cauta_context("Test", 45, 5)
     assert len(res) == 1
     assert res[0]["text"] == "Qdrant query points result"
+
+
 
 

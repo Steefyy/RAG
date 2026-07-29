@@ -9,6 +9,7 @@ from auth import verify_credentials
 
 app = FastAPI(title="RAG Chatbot Service")
 
+
 @app.get("/health")
 def health():
     connected = verifica_conexiune()
