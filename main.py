@@ -1,4 +1,6 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Header, Depends
+import os
+import secrets
 from models import ChatRequest, ChatResponse
 from llm_service import genereaza_raspuns, verifica_conexiune
 from prompt_builder import construieste_prompt
@@ -7,6 +9,20 @@ from reranker_service import reordoneaza_contexte
 from security_guard import valideaza_intrebare
 
 app = FastAPI(title="RAG Chatbot Service")
+
+RAG_SHARED_SECRET = os.environ.get("RAG_SHARED_SECRET", "")
+
+def verify_internal_token(x_internal_token: str = Header(None, alias="X-Internal-Token")):
+    if not RAG_SHARED_SECRET:
+        raise HTTPException(
+            status_code=500,
+            detail="Serviciul RAG nu este configurat corect. Variabila RAG_SHARED_SECRET lipseste."
+        )
+    if not x_internal_token or not secrets.compare_digest(x_internal_token, RAG_SHARED_SECRET):
+        raise HTTPException(
+            status_code=401,
+            detail="Acces neautorizat. Token intern invalid sau lipsa."
+        )
 
 @app.get("/health")
 def health():
@@ -19,7 +35,7 @@ def health():
     }
 
 @app.post("/chat", response_model=ChatResponse)
-def chat(request: ChatRequest):
+def chat(request: ChatRequest, token: str = Depends(verify_internal_token)):
     # 0. Rulam filtrul de securitate local (Prompt Injection Guard) - 100% Gratuit si Offline
     status_securitate = valideaza_intrebare(request.intrebare)
     if not status_securitate.safe:
