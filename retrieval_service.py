@@ -41,7 +41,7 @@ def obtine_embedding_intrebare(intrebare: str) -> list[float] | None:
         response = requests.post(
             embedder_url,
             json={"text": intrebare},
-            timeout=5.0
+            timeout=30.0
         )
         if response.status_code == 200:
             data = response.json()
@@ -77,7 +77,7 @@ def cauta_context(intrebare: str, curs_id: int, max_saptamana: int) -> list[dict
                 port = int(os.environ.get("QDRANT_PORT", 6333))
                 collection = os.environ.get("QDRANT_COLLECTION", "course_chunks")
 
-                client = QdrantClient(host=host, port=port, timeout=5.0)
+                client = QdrantClient(host=host, port=port, timeout=10.0)
 
                 # Filtru de metadate pe curs si saptamana parcursa
                 scroll_filter = models.Filter(

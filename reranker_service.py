@@ -52,7 +52,7 @@ def reordoneaza_contexte(intrebare: str, contexte_brute: list) -> list:
         }
 
         # Apel HTTP real catre serviciul de Reranker al Persoanei C
-        with httpx.Client(timeout=5.0) as client:
+        with httpx.Client(timeout=30.0) as client:
             response = client.post(RERANKER_URL, json=request_body)
             
             if response.status_code == 200:
