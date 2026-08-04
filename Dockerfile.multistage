@@ -17,7 +17,8 @@ COPY --from=builder /app/.venv /app/.venv
 
 # Doar codul de producție — fără test_unit.py, test_post_chat.py, documentație
 COPY main.py models.py llm_service.py prompt_builder.py \
-     reranker_service.py retrieval_service.py security_guard.py auth.py ./
+     reranker_service.py retrieval_service.py security_guard.py auth.py \
+     logging_setup.py logging_ctx.py middleware.py ./
 
 EXPOSE 8000
 

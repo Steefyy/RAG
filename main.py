@@ -7,7 +7,21 @@ from reranker_service import reordoneaza_contexte
 from security_guard import valideaza_intrebare
 from auth import verify_credentials
 
-app = FastAPI(title="RAG Chatbot Service")
+import logging
+
+from logging_setup import setup_logging
+from middleware import request_context
+from contextlib import asynccontextmanager
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    setup_logging()   # re-aplica: uvicorn si-a pus handlerele intre timp
+    yield
+
+
+app = FastAPI(title="RAG Chatbot Service", lifespan=lifespan)
+app.middleware("http")(request_context)
 
 
 @app.get("/health")

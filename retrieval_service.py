@@ -1,6 +1,8 @@
 import os
 import requests
 from dotenv import load_dotenv
+from logging_ctx import request_id_var
+
 
 load_dotenv()
 
@@ -41,7 +43,12 @@ def obtine_embedding_intrebare(intrebare: str) -> list[float] | None:
         response = requests.post(
             embedder_url,
             json={"text": intrebare},
-            timeout=30.0
+            auth=(
+                os.environ.get("RAG_SERVICE_USERNAME", "akadion-spring-backend"),
+                os.environ.get("RAG_SERVICE_PASSWORD", "parola_spring_rag"),
+            ),
+            headers={"X-Request-ID": request_id_var.get()},
+            timeout=30.0,
         )
         if response.status_code == 200:
             data = response.json()

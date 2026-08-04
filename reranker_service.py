@@ -1,5 +1,6 @@
 import os
 import httpx
+from logging_ctx import request_id_var
 from pydantic import BaseModel
 
 RERANKER_URL = os.environ.get("RERANKER_URL", "http://localhost:8002/api/rerank/chunks")
@@ -53,7 +54,11 @@ def reordoneaza_contexte(intrebare: str, contexte_brute: list) -> list:
 
         # Apel HTTP real catre serviciul de Reranker al Persoanei C
         with httpx.Client(timeout=30.0) as client:
-            response = client.post(RERANKER_URL, json=request_body)
+            response = client.post(
+                RERANKER_URL,
+                json=request_body,
+                headers={"X-Request-ID": request_id_var.get()},
+            )
             
             if response.status_code == 200:
                 data = response.json()
