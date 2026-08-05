@@ -12,6 +12,11 @@ dependencies = [
     "pydantic==2.13.4",
     "httpx==0.28.1",
     "qdrant-client==1.18.0",
+    # OpenTelemetry: instrumentare FastAPI (server) + httpx (client, propagă traceparent)
+    "opentelemetry-distro>=0.65b0",
+    "opentelemetry-exporter-otlp>=1.44.0",
+    "opentelemetry-instrumentation-fastapi>=0.65b0",
+    "opentelemetry-instrumentation-httpx>=0.65b0",
 ]
 
 [dependency-groups]
