@@ -3,6 +3,10 @@ import requests
 from dotenv import load_dotenv
 from logging_ctx import request_id_var, user_var
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 load_dotenv()
 
 # Documente simulate pe cursuri si saptamani (metadate)
@@ -33,6 +37,7 @@ MOCK_DOCUMENTS = [
     }
 ]
 
+
 def obtine_embedding_intrebare(intrebare: str) -> list[float] | None:
     """
     Apeleaza Embedder Service (POST /api/query/embed) pentru a obtine vectorul de embedding al intrebarii.
@@ -51,12 +56,24 @@ def obtine_embedding_intrebare(intrebare: str) -> list[float] | None:
         )
         if response.status_code == 200:
             data = response.json()
-            return data.get("embedding")
+            embedding = data.get("embedding")
+            logger.info(
+                "embedding_obtinut",
+                extra={"dim": len(embedding) if embedding else 0},
+            )
+            return embedding
         else:
-            print(f"[EMBEDDER WARNING] Status code {response.status_code} primit de la Embedder Service.")
+            logger.warning(
+                "embedder_status_neasteptat",
+                extra={"status": response.status_code, "url": embedder_url},
+            )
     except Exception as e:
-        print(f"[EMBEDDER WARNING] Nu s-a putut obtine embedding-ul de la Embedder Service ({embedder_url}): {e}")
+        logger.warning(
+            "embedder_indisponibil",
+            extra={"url": embedder_url, "error": str(e)},
+        )
     return None
+
 
 def cauta_context(intrebare: str, curs_id: int, max_saptamana: int) -> list[dict]:
     """
@@ -113,6 +130,18 @@ def cauta_context(intrebare: str, curs_id: int, max_saptamana: int) -> list[dict
                     )
                     search_results = response_qp.points
 
+                logger.info(
+                    "vector_search_done",
+                    extra={
+                        "curs_id": curs_id,
+                        "max_saptamana": max_saptamana,
+                        "collection": collection,
+                        "n_results": len(search_results),
+                        "scores": [round(getattr(pt, "score", 0) or 0, 4) for pt in search_results],
+                        "doc_ids": [(pt.payload or {}).get("document_id") for pt in search_results],
+                    },
+                )
+
                 contexte_qdrant = []
                 for pt in search_results:
                     payload = pt.payload or {}
@@ -129,11 +158,27 @@ def cauta_context(intrebare: str, curs_id: int, max_saptamana: int) -> list[dict
                     })
 
                 if contexte_qdrant:
+                    logger.info(
+                        "context_din_qdrant",
+                        extra={
+                            "n_chunks": len(contexte_qdrant),
+                            "chars_total": sum(len(c["text"]) for c in contexte_qdrant),
+                            "preview": [c["text"][:80] for c in contexte_qdrant[:3]],
+                        },
+                    )
                     return contexte_qdrant
+
+                logger.warning(
+                    "qdrant_zero_rezultate",
+                    extra={"curs_id": curs_id, "max_saptamana": max_saptamana},
+                )
             else:
-                print("[QDRANT WARNING] Vectorul de interogare nu a putut fi extras. Folosim fallback mock.")
+                logger.warning("vector_lipsa_fallback_mock", extra={"curs_id": curs_id})
         except Exception as e:
-            print(f"[QDRANT WARNING] Nu s-a putut efectua interogarea pe Qdrant: {e}. Folosim fallback mock.")
+            logger.warning(
+                "qdrant_eroare_fallback_mock",
+                extra={"curs_id": curs_id, "error": str(e)},
+            )
 
     # Cautare pe date simulate (Mock Fallback)
     contexte_gasite = []
@@ -145,7 +190,12 @@ def cauta_context(intrebare: str, curs_id: int, max_saptamana: int) -> list[dict
             if cuvinte_intrebare.intersection(cuvinte_doc):
                 contexte_gasite.append(doc)
 
+    logger.warning(
+        "context_din_mock",
+        extra={"n_chunks": len(contexte_gasite), "use_mock": use_mock, "curs_id": curs_id},
+    )
     return contexte_gasite
+
 
 def cauta_contexte_scroll(curs_id: int, max_saptamana: int, document_id: int = None, limit: int = 15) -> list[dict]:
     """
@@ -192,6 +242,17 @@ def cauta_contexte_scroll(curs_id: int, max_saptamana: int, document_id: int = N
                 with_vectors=False
             )
 
+            logger.info(
+                "scroll_done",
+                extra={
+                    "curs_id": curs_id,
+                    "document_id": document_id,
+                    "max_saptamana": max_saptamana,
+                    "n_scroll": len(scroll_results),
+                    "limit_returnat": limit,
+                },
+            )
+
             contexte_qdrant = []
             for pt in scroll_results:
                 payload = pt.payload or {}
@@ -211,8 +272,16 @@ def cauta_contexte_scroll(curs_id: int, max_saptamana: int, document_id: int = N
                 random.shuffle(contexte_qdrant)
                 return contexte_qdrant[:limit]
 
+            logger.warning(
+                "scroll_zero_rezultate",
+                extra={"curs_id": curs_id, "document_id": document_id},
+            )
+
         except Exception as e:
-            print(f"[QDRANT WARNING] Nu s-a putut efectua scroll pe Qdrant: {e}. Folosim fallback mock.")
+            logger.warning(
+                "scroll_eroare_fallback_mock",
+                extra={"curs_id": curs_id, "error": str(e)},
+            )
 
     # Mock Fallback
     contexte_gasite = []
@@ -223,6 +292,11 @@ def cauta_contexte_scroll(curs_id: int, max_saptamana: int, document_id: int = N
         else:
             if doc["curs_id"] == curs_id and doc["week_id"] <= max_saptamana:
                 contexte_gasite.append(doc)
-    
+
+    logger.warning(
+        "scroll_context_din_mock",
+        extra={"n_chunks": len(contexte_gasite), "use_mock": use_mock, "curs_id": curs_id},
+    )
+
     random.shuffle(contexte_gasite)
     return contexte_gasite[:limit]

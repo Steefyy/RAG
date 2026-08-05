@@ -13,6 +13,8 @@ from logging_setup import setup_logging
 from middleware import request_context
 from contextlib import asynccontextmanager
 
+logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -33,6 +35,7 @@ def health():
         "llm_provider": "gemini",
         "llm_connected": connected
     }
+
 
 @app.post("/chat", response_model=ChatResponse, dependencies=[Depends(verify_credentials)])
 def chat(request: ChatRequest):
@@ -55,6 +58,15 @@ def chat(request: ChatRequest):
     # 2. Reordonam si selectam cele mai relevante 5 propozitii prin Reranker (Persoana C)
     context_chunks = reordoneaza_contexte(request.intrebare, context_chunks_brute)
 
+    logger.info(
+        "retrieval_done",
+        extra={
+            "n_brute": len(context_chunks_brute),
+            "n_dupa_rerank": len(context_chunks),
+            "chars_context": sum(len(c.get("text", "")) for c in context_chunks),
+        },
+    )
+
     # 3. Construim promptul cu contextul si istoricul trimis de monolit
     prompt = construieste_prompt(request.intrebare, request.istoricConversatie, context_chunks)
 
@@ -63,7 +75,7 @@ def chat(request: ChatRequest):
         raspuns_text = genereaza_raspuns(prompt)
     except Exception:
         raise HTTPException(
-            status_code=503, 
+            status_code=503,
             detail="Serviciul LLM este momentan indisponibil. Incearca din nou in cateva momente."
         )
 
@@ -71,6 +83,7 @@ def chat(request: ChatRequest):
     surse_folosite = list(set([c["document_id"] for c in context_chunks]))
 
     return ChatResponse(raspuns=raspuns_text, surseFolosite=surse_folosite)
+
 
 @app.post("/quiz/generate", dependencies=[Depends(verify_credentials)])
 def generate_quiz(request: QuizRequest):
