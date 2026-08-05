@@ -15,3 +15,9 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     raspuns: str
     surseFolosite: List[int] = []
+
+class QuizRequest(BaseModel):
+    cursId: int
+    maxSaptamana: int = None
+    documentId: int = None
+    nrIntrebari: int = 5

@@ -1,8 +1,8 @@
 from fastapi import FastAPI, HTTPException, Depends
-from models import ChatRequest, ChatResponse
-from llm_service import genereaza_raspuns, verifica_conexiune
-from prompt_builder import construieste_prompt
-from retrieval_service import cauta_context
+from models import ChatRequest, ChatResponse, QuizRequest
+from llm_service import genereaza_raspuns, verifica_conexiune, genereaza_quiz
+from prompt_builder import construieste_prompt, construieste_prompt_quiz
+from retrieval_service import cauta_context, cauta_contexte_scroll
 from reranker_service import reordoneaza_contexte
 from security_guard import valideaza_intrebare
 from auth import verify_credentials
@@ -71,3 +71,43 @@ def chat(request: ChatRequest):
     surse_folosite = list(set([c["document_id"] for c in context_chunks]))
 
     return ChatResponse(raspuns=raspuns_text, surseFolosite=surse_folosite)
+
+@app.post("/quiz/generate", dependencies=[Depends(verify_credentials)])
+def generate_quiz(request: QuizRequest):
+    # 1. Recuperăm fragmentele de text (chunks) din Qdrant
+    context_chunks = cauta_contexte_scroll(
+        curs_id=request.cursId,
+        max_saptamana=request.maxSaptamana or 999,
+        document_id=request.documentId
+    )
+
+    if not context_chunks:
+        raise HTTPException(
+            status_code=404,
+            detail="Nu s-au găsit documente indexate pentru selecția curentă din care să generăm întrebări."
+        )
+
+    # 2. Construim promptul cu contextul extras
+    prompt = construieste_prompt_quiz(context_chunks, request.nrIntrebari)
+
+    # 3. Apelăm Gemini în format JSON
+    try:
+        json_response = genereaza_quiz(prompt)
+    except Exception as e:
+        print(f"[QUIZ GENERATION ERROR] Gemini call failed: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail="Serviciul de inteligență artificială este indisponibil pentru generarea quiz-ului."
+        )
+
+    import json
+    try:
+        # Validăm că e JSON valid
+        quiz_data = json.loads(json_response)
+        return quiz_data
+    except Exception as e:
+        print(f"[QUIZ PARSING ERROR] Failed to parse JSON response: {json_response}")
+        raise HTTPException(
+            status_code=500,
+            detail="Nu s-a putut genera un test grilă valid în format JSON."
+        )

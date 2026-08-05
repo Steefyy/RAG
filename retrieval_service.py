@@ -146,3 +146,83 @@ def cauta_context(intrebare: str, curs_id: int, max_saptamana: int) -> list[dict
                 contexte_gasite.append(doc)
 
     return contexte_gasite
+
+def cauta_contexte_scroll(curs_id: int, max_saptamana: int, document_id: int = None, limit: int = 15) -> list[dict]:
+    """
+    Recuperează fragmente brute de text (chunks) din Qdrant fără căutare vectorială semantică.
+    Folosește metoda de scroll pe baza ID-ului de curs/săptămână sau document_id.
+    Pentru diversitate, face scroll la un număr mai mare de fragmente, le amestecă (shuffle) 
+    și selectează un subset de dimensiune `limit`.
+    """
+    use_mock = os.environ.get("USE_QDRANT_MOCK", "true").lower() in ("true", "1", "yes")
+    import random
+
+    if not use_mock:
+        try:
+            from qdrant_client import QdrantClient
+            from qdrant_client.http import models
+
+            host = os.environ.get("QDRANT_HOST", "localhost")
+            port = int(os.environ.get("QDRANT_PORT", 6333))
+            collection = os.environ.get("QDRANT_COLLECTION", "course_chunks")
+
+            client = QdrantClient(host=host, port=port, timeout=10.0)
+
+            # Construire filtre
+            must_conditions = []
+            if document_id is not None:
+                must_conditions.append(models.FieldCondition(key="document_id", match=models.MatchValue(value=document_id)))
+            else:
+                must_conditions.append(models.FieldCondition(key="week_id", range=models.Range(lte=max_saptamana)))
+                must_conditions.append(models.Filter(
+                    should=[
+                        models.FieldCondition(key="course_id", match=models.MatchValue(value=curs_id)),
+                        models.FieldCondition(key="curs_id", match=models.MatchValue(value=curs_id))
+                    ]
+                ))
+
+            scroll_filter = models.Filter(must=must_conditions)
+
+            # Scroll pe mai multe puncte pentru a permite diversitatea prin amestecare
+            scroll_results, _ = client.scroll(
+                collection_name=collection,
+                scroll_filter=scroll_filter,
+                limit=100,
+                with_payload=True,
+                with_vectors=False
+            )
+
+            contexte_qdrant = []
+            for pt in scroll_results:
+                payload = pt.payload or {}
+                text_content = payload.get("chunk_text") or payload.get("text", "")
+                c_id = payload.get("course_id") or payload.get("curs_id", curs_id)
+                doc_id = payload.get("document_id", 999)
+                w_id = payload.get("week_id", max_saptamana)
+
+                contexte_qdrant.append({
+                    "document_id": int(doc_id) if str(doc_id).isdigit() else 999,
+                    "curs_id": int(c_id),
+                    "week_id": int(w_id),
+                    "text": str(text_content)
+                })
+
+            if contexte_qdrant:
+                random.shuffle(contexte_qdrant)
+                return contexte_qdrant[:limit]
+
+        except Exception as e:
+            print(f"[QDRANT WARNING] Nu s-a putut efectua scroll pe Qdrant: {e}. Folosim fallback mock.")
+
+    # Mock Fallback
+    contexte_gasite = []
+    for doc in MOCK_DOCUMENTS:
+        if document_id is not None:
+            if doc.get("document_id") == document_id:
+                contexte_gasite.append(doc)
+        else:
+            if doc["curs_id"] == curs_id and doc["week_id"] <= max_saptamana:
+                contexte_gasite.append(doc)
+    
+    random.shuffle(contexte_gasite)
+    return contexte_gasite[:limit]
