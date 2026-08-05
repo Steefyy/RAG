@@ -1,8 +1,7 @@
 import os
 import requests
 from dotenv import load_dotenv
-from logging_ctx import request_id_var
-
+from logging_ctx import request_id_var, user_var
 
 load_dotenv()
 
@@ -47,7 +46,7 @@ def obtine_embedding_intrebare(intrebare: str) -> list[float] | None:
                 os.environ.get("RAG_SERVICE_USERNAME", "akadion-spring-backend"),
                 os.environ.get("RAG_SERVICE_PASSWORD", "parola_spring_rag"),
             ),
-            headers={"X-Request-ID": request_id_var.get()},
+            headers={"X-Request-ID": request_id_var.get(), "X-User": user_var.get()},
             timeout=30.0,
         )
         if response.status_code == 200:

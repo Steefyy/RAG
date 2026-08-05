@@ -5,6 +5,8 @@ import sys
 
 from logging_ctx import request_id_var
 
+from datetime import datetime
+
 SERVICE = os.getenv("SERVICE_NAME", "reranker")
 
 # atributele standard ale unui LogRecord — tot ce nu e aici a venit din extra={}
@@ -23,7 +25,7 @@ class ContextFilter(logging.Filter):
 class JsonFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         payload = {
-            "ts": self.formatTime(record, "%Y-%m-%dT%H:%M:%S"),
+            "ts": datetime.fromtimestamp(record.created).astimezone().isoformat(timespec="milliseconds"),
             "level": record.levelname,
             "service": getattr(record, "service", "-"),
             "request_id": getattr(record, "request_id", "-"),
